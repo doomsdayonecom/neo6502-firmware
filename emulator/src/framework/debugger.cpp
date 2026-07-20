@@ -14,7 +14,11 @@
 #include "gfx.h"
 #include "sys_processor.h"
 #include "debugger.h"
-#include "common.h"	
+#include "common.h"
+
+extern "C" {
+#include "retro_control.h"															// RRDC control server (see control_backend.cpp).
+}
 
 static int isInitialised = 0; 														// Flag to initialise first time
 static int addressSettings[] = { 0,0,0,0x20FFFF }; 									// Adjustable values : Code, Data, Other, Break.
@@ -32,6 +36,8 @@ static int frameCount = 0;
 // *******************************************************************************************************************************
 
 int GFXXRender(SDL_Surface *surface) {
+
+	retro_control_service();														// RRDC: drain a pending control request (no-op when off).
 
 	frameCount++;
 	int repaint = (frameCount & FRAMESKIP) == 0;
@@ -126,16 +132,19 @@ int GFXXRender(SDL_Surface *surface) {
 		} 
 	}
 	#endif
-	if (inRunMode != 0) {															// Running a program.
+	if (inRunMode != 0 && retro_control_running()) {								// Running a program (RRDC may hold it paused).
 		int frameRate = DEBUG_RUN(addressSettings[3],stepBreakPoint);				// Run a frame, or try to.
 		if (frameRate == 0) {														// Run code with step breakpoint, maybe.
 			inRunMode = 0;															// Break has occurred.
 		} else {
+			retro_control_on_frame();												// RRDC: a video frame completed (drives /step).
 			while (SDL_GetTicks() < nextFrame) {};									// Wait for frame timer to elapse.
 			nextFrame = SDL_GetTicks() + 1000 / frameRate;							// And calculate the next sync time.
 		}
 		addressSettings[0] = DEBUG_HOMEPC();
-	}	
+	} else if (!retro_control_running()) {											// RRDC paused with no steps left: don't busy-spin.
+		SDL_Delay(1);
+	}
 	return repaint;
 }
 

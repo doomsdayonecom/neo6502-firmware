@@ -55,6 +55,10 @@ BYTE8 DBGGetDisplayScale(void);
 void DBGSetDisplayScale(uint16_t scale);
 void DBGSaveArguments(int argc,char *argv[]);
 
+int DBGGetControlPort(void);														// RRDC control port from the command line (0 = off).
+const uint8_t *RNDGetRGBFrame(int *w, int *h);										// Current 320x240 frame as RGB888 (for RRDC /screenshot).
+int neo_control_start(int port);													// Start the RRDC HTTP server (control_backend.cpp).
+
 int DBGXDasm65(int addr, char* buffer);												// Disassemble the instruction at addr, writing into buffer.
 int DBGXInstructionSize65(int addr);												// Calc size (1,2 or 3) of instruction found at at addr.
 void DBGXDumpMem(int addr, int nbytes, char* buffer);								// Dump hex bytes out into a string.

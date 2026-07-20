@@ -21,6 +21,9 @@ int main(int argc,char *argv[]) {
 	DEBUG_ARGUMENTS(argc,argv);
 	DEBUG_RESET();
 	GFXOpenWindow(WIN_TITLE,WIN_WIDTH,WIN_HEIGHT,WIN_BACKCOLOUR);
+	if (DBGGetControlPort() > 0) {													// RRDC: start the HTTP control server if requested.
+		neo_control_start(DBGGetControlPort());
+	}
 	GFXStart();
 	CPUEndRun();
 	GFXCloseWindow();

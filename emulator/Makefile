@@ -26,6 +26,8 @@ SOURCES = 	src$(S)core$(S)sys_processor.o src$(S)core$(S)hardware.o src$(S)frame
 			src$(S)core$(S)sys_debugger.o  \
 			src$(S)core$(S)6502.o \
 			src$(S)core$(S)serial_tcp.o \
+			src$(S)core$(S)control_backend.o \
+			extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.o \
 			$(COMMONOBJECTS)
 
 CC = g++
@@ -102,10 +104,14 @@ windows: clearobj $(APPNAME)
 # ***************************************************************************************
 
 $(APPNAME): $(SOURCES)
-	$(CC) $(SOURCES) $(LDFLAGS) $(SDL_LDFLAGS) -o $@
+	$(CC) $(SOURCES) $(LDFLAGS) $(SDL_LDFLAGS) -lpthread -o $@
 
 %.o:%.cpp
-	$(CC) $(CADDRESSES) $(CXXFLAGS) -fpermissive -D IBMPC -D INCLUDE_DEBUGGING_SUPPORT -I cpu -I src$(S)framework -I include -I $(COMDIR)include -c -o $@ $<
+	$(CC) $(CADDRESSES) $(CXXFLAGS) -fpermissive -D IBMPC -D INCLUDE_DEBUGGING_SUPPORT '-D__time_critical_func(x)=x' -I cpu -I src$(S)framework -I include -I $(COMDIR)include -I extern$(S)retro-remote-debug-controller$(S)core -c -o $@ $<
+
+# RRDC control server (portable C, compiled as C for C linkage).
+extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.o: extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.c
+	gcc -O2 -I extern$(S)retro-remote-debug-controller$(S)core -c -o $@ $<
 
 always:
 

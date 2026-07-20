@@ -55,6 +55,37 @@ void RNDStartMode0(struct GraphicsMode *gMode) {
 
 // *******************************************************************************************************************************
 //
+//		Retro Remote Debug Controller (RRDC): the control port from the command line, and an indexed->RGB888
+//		conversion of the current 320x240 frame for the /screenshot endpoint.
+//
+// *******************************************************************************************************************************
+
+static int rrdcPort = 0;															// RRDC control port (0 = disabled).
+
+int DBGGetControlPort(void) {
+	return rrdcPort;
+}
+
+// videoRAM is NULL until a graphics mode starts (returns black then). Palette entries are 12-bit $0RGB; expand each
+// nibble x17 to 8-bit (matching the gfx.cpp RED/GREEN/BLUE macros).
+const uint8_t *RNDGetRGBFrame(int *w, int *h) {
+	static uint8_t rgb[320 * 240 * 3];
+	*w = 320; *h = 240;
+	if (videoRAM == NULL) {
+		memset(rgb, 0, sizeof(rgb));
+		return rgb;
+	}
+	for (int i = 0; i < 320 * 240; i++) {
+		uint16_t c = palette[videoRAM[i]];
+		rgb[i * 3 + 0] = ((c >> 8) & 0xF) * 17;
+		rgb[i * 3 + 1] = ((c >> 4) & 0xF) * 17;
+		rgb[i * 3 + 2] = ( c       & 0xF) * 17;
+	}
+	return rgb;
+}
+
+// *******************************************************************************************************************************
+//
 //											Get/Set emulator display scale
 //
 // *******************************************************************************************************************************
@@ -81,6 +112,9 @@ void DBGSaveArguments(int argc,char *argv[]) {
 		printf("%s\n",p);
 		if (strncmp(p,"scale=",6) == 0 && strlen(p) == 7) {
 			DBGSetDisplayScale(p[6]-'0');
+		}
+		if (strncmp(p,"rrdcport=",9) == 0) {										// RRDC control port (0 = off).
+			rrdcPort = atoi(p+9);
 		}
 	}
 }
