@@ -111,9 +111,12 @@ void HWReset(void) {
 //
 // *******************************************************************************************************************************
 
+extern void BEEPERGenerateFrame(void);   // beeper.cpp: emulation-driven audio
+
 void HWSync(void) {
 	TICKProcess();
 	frameCount++;
+	BEEPERGenerateFrame();               // one frame of audio -> playback FIFO + /audio capture ring
 }
 
 int  RNDGetFrameCount(void) {

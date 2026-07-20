@@ -31,7 +31,71 @@ void (*m_writeData)(uint8_t* ptr, double data);
 int (*m_calculateOffset)(int sample, int channel);
 
 // ***************************************************************************************
-// 
+//
+//		Emulation-driven audio generation + RRDC /audio capture.
+//
+//		SNDGetNextSample() advances the channel state per call, so it can only be
+//		driven from one place. To make the control-API /audio drain DETERMINISTIC
+//		under pause+step (the audio analogue of /screenshot), generation is driven
+//		from the emulation loop (HWSync, once per frame) rather than the real-time
+//		SDL pull callback: BEEPERGenerateFrame() produces one frame's worth of
+//		samples and tees them into a playback FIFO (drained by the SDL callback)
+//		and a capture ring (drained by BEEPERCaptureDrain). Stepping N frames thus
+//		yields exactly N*(rate/FRAME_RATE) captured samples, regardless of wall time.
+//
+// ***************************************************************************************
+
+#define AUDIO_RATE_DEFAULT 44100
+
+// Playback FIFO: written by the emulator thread (BEEPERGenerateFrame), read by
+// the SDL audio thread (audioCallback). Single-producer/single-consumer: the
+// producer only advances pb_wr, the consumer only advances pb_rd.
+#define PB_RING  (1u << 13)
+static int16_t           pb_ring[PB_RING];
+static volatile uint32_t pb_wr = 0, pb_rd = 0;
+
+// Capture ring: written + drained on the emulator thread only (retro_control
+// services /audio at a frame boundary), so no cross-thread concern here.
+#define CAP_RING (1u << 15)
+static int16_t  cap_ring[CAP_RING];
+static uint32_t cap_wr = 0, cap_rd = 0, cap_dropped = 0;
+
+static int BEEPERRate(void) {
+	return (m_obtainedSpec.freq > 0) ? m_obtainedSpec.freq : AUDIO_RATE_DEFAULT;
+}
+
+// Called once per frame from HWSync (emulator thread).
+void BEEPERGenerateFrame(void) {
+	int n = BEEPERRate() / FRAME_RATE;
+	for (int i = 0; i < n; i++) {
+		int raw = SNDGetNextSample();                       // ~ -128..127 (AGC-bounded)
+		// Playback FIFO — store the raw value; the callback normalises /128 as before.
+		// On full, drop the new sample (producer must not touch pb_rd).
+		uint32_t pnext = (pb_wr + 1u) & (PB_RING - 1u);
+		if (pnext != pb_rd) { pb_ring[pb_wr] = (int16_t)raw; pb_wr = pnext; }
+		// Capture ring — full-scale S16 (matches the played level: data*range/2).
+		int16_t s16 = (int16_t)((raw / 128.0) * ((double)INT16_MAX));
+		uint32_t cnext = (cap_wr + 1u) & (CAP_RING - 1u);
+		if (cnext == cap_rd) { cap_rd = (cap_rd + 1u) & (CAP_RING - 1u); cap_dropped++; }
+		cap_ring[cap_wr] = s16; cap_wr = cnext;
+	}
+}
+
+// Drain up to `cap` mono int16 samples for GET /audio (emulator thread).
+uint32_t BEEPERCaptureDrain(int16_t *out, uint32_t cap, uint32_t *dropped) {
+	uint32_t k = 0;
+	while (k < cap && cap_rd != cap_wr) {
+		out[k++] = cap_ring[cap_rd];
+		cap_rd = (cap_rd + 1u) & (CAP_RING - 1u);
+	}
+	if (dropped) { *dropped = cap_dropped; cap_dropped = 0; }
+	return k;
+}
+
+int BEEPERCaptureRate(void) { return BEEPERRate(); }
+
+// ***************************************************************************************
+//
 // 		Calculate the offset in bytes from the start of the audio stream to the
 // 		memory address at `sample` and `channel`.
 //
@@ -84,7 +148,14 @@ static void audioCallback(void* userdata,uint8_t* stream,int len) {
 	// Write data to the entire buffer by iterating through all samples and
 	// channels.
 	for (int sample = 0; sample < m_obtainedSpec.samples; ++sample) {
-		double data = SNDGetNextSample()/128.0;
+		// Pull the emulation-generated sample from the playback FIFO; silence on
+		// underrun (the FIFO is filled once per frame by BEEPERGenerateFrame).
+		int16_t raw = 0;
+		if (pb_rd != pb_wr) {
+			raw = pb_ring[pb_rd];
+			pb_rd = (pb_rd + 1u) & (PB_RING - 1u);
+		}
+		double data = raw / 128.0;
 
 		// Write the same data to all channels
 		for (int channel = 0; channel < m_obtainedSpec.channels; ++channel) {

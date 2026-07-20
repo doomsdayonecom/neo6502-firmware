@@ -25,6 +25,8 @@ extern "C" {
 extern const uint8_t *RNDGetRGBFrame(int *w, int *h);
 extern int RNDGetFrameCount(void);
 extern void HWQueueKeyboardEvent(int sdlCode, int isDown);   // hardware.cpp (feeds KBDEvent)
+extern uint32_t BEEPERCaptureDrain(int16_t *out, uint32_t cap, uint32_t *dropped);  // beeper.cpp
+extern int BEEPERCaptureRate(void);                                                 // beeper.cpp
 
 // --- backend callbacks (called on the emulator thread by retro_control_service) ---------
 
@@ -108,6 +110,16 @@ static uint32_t neo_write_mem(uint32_t addr, int32_t bank, uint32_t len,
     return len;
 }
 
+// --- 0.3: drain the audio synthesised since the last call (mono S16). The neo
+// generates audio per-frame in the emulation loop, so this is deterministic
+// under pause+step (step N frames -> N*(rate/60) samples). ---------------------
+static uint32_t neo_capture_audio(int16_t *out, uint32_t cap, int *rate,
+                                  int *channels, uint32_t *dropped) {
+    *rate = BEEPERCaptureRate();
+    *channels = 1;               // the neo beeper is mono
+    return BEEPERCaptureDrain(out, cap, dropped);
+}
+
 static const retro_control_backend_t neo_backend = {
     "neo6502",              // platform
     "neo",                  // emulator
@@ -118,11 +130,7 @@ static const retro_control_backend_t neo_backend = {
     neo_inject_key,         // inject_key      (0.2)
     neo_reset,              // reset           (0.2)
     neo_write_mem,          // write_mem       (0.3)
-    nullptr,                // capture_audio   (0.3) — deferred. The neo's audio is
-                            //   generated only in the real-time SDL pull callback
-                            //   (SNDGetNextSample), so a deterministic /audio drain
-                            //   would need per-frame emulation-driven generation.
-                            //   Server therefore advertises contract 0.2.0.
+    neo_capture_audio,      // capture_audio   (0.3) — emulation-driven, deterministic
 };
 
 // Called once from main() when a control port was requested on the command line.
