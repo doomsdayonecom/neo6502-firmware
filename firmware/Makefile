@@ -80,8 +80,8 @@ build: prelim always
 # ***************************************************************************************
 
 clean: always
-	cmake --fresh -B build -DSTORAGE_TYPE=$(STORAGE)
-	cmake --build build --target clean
+	$(CDEL) $(BINARY).elf $(BINARY).uf2
+	rm -Rf build
 
 # ***************************************************************************************
 #
