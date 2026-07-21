@@ -29,9 +29,12 @@ RUN apt-get update -y -qq \
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
-# Raspberry Pi Pico SDK for the RP2040 firmware build (matches the branch the
-# upstream build tracks); --recurse for its tinyusb/etc. submodules.
-RUN git clone --depth 1 --branch master https://github.com/raspberrypi/pico-sdk "$PICO_SDK_PATH" \
+# Raspberry Pi Pico SDK, PINNED to the version the firmware's
+# firmware/pico_sdk_import.cmake expects (1.5.1). Do NOT track master: pico-sdk
+# 2.x reorganised boot_stage2 (boot2_generic_03h.S moved) and won't build this
+# firmware. Baking the pinned SDK also makes the build reproducible + skips the
+# fetch-from-git at cmake time.
+RUN git clone --depth 1 --branch 1.5.1 https://github.com/raspberrypi/pico-sdk "$PICO_SDK_PATH" \
  && git -C "$PICO_SDK_PATH" submodule update --init --depth 1
 
 WORKDIR /work
