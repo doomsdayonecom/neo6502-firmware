@@ -2,6 +2,9 @@
 # pac-man-neo / pac-man-x16 setup: GitHub stays canonical for issues/PRs;
 # Codeberg holds a git mirror. Auth is a dedicated SSH deploy key in
 # secrets.CODEBERG_SSH_KEY, targeting codeberg.org/doomsdayonecom/neo6502-firmware.
+#
+# The job no-ops (green) until CODEBERG_SSH_KEY is set, so it never blocks a
+# push before the Codeberg repo + deploy key exist.
 
 name: 🪞 Mirror to Codeberg
 
@@ -20,12 +23,26 @@ jobs:
     name: Mirror code repo
     runs-on: ubuntu-latest
     steps:
+      - name: 🔑 Check for the Codeberg deploy key
+        id: guard
+        env:
+          KEY: ${{ secrets.CODEBERG_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "CODEBERG_SSH_KEY not set — skipping mirror"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 📦 Checkout (full history + all refs)
+        if: steps.guard.outputs.run == 'true'
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: 🪞 Push to Codeberg
+        if: steps.guard.outputs.run == 'true'
         uses: pixta-dev/repository-mirroring-action@v1
         with:
           target_repo_url: ssh://git@codeberg.org/doomsdayonecom/neo6502-firmware.git
