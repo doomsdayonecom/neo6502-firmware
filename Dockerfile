@@ -17,13 +17,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update -y -qq \
  && apt-get install -y --no-install-recommends \
       build-essential cmake git ca-certificates \
+      ccache \
       python3 python3-pip \
       64tass zip \
       libsdl2-dev \
       gcc-arm-none-eabi \
       mingw-w64 g++-mingw-w64-x86-64 \
- && pip3 install --no-cache-dir --break-system-packages pillow gitpython \
  && rm -rf /var/lib/apt/lists/*
+
+# Python build deps, from requirements.txt so Dependabot can track them.
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 # Raspberry Pi Pico SDK for the RP2040 firmware build (matches the branch the
 # upstream build tracks); --recurse for its tinyusb/etc. submodules.
