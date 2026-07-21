@@ -1,3 +1,29 @@
+# Neo6502 firmware — Doomsday One edition
+
+> **A maintained fork.** This is [Doomsday One](https://github.com/doomsdayonecom)'s
+> fork of the [Neo6502](https://www.olimex.com/Products/Retro-Computers/Neo6502/)
+> firmware and emulators, originally by **Paul Scott Robson**
+> ([paulscottrobson/neo6502-firmware](https://github.com/paulscottrobson/neo6502-firmware)).
+> Upstream development has largely wound down, so we maintain this fork as the
+> reference firmware + emulator for our Neo6502 projects — such as
+> [pac-man-neo](https://github.com/doomsdayonecom/pac-man-neo).
+>
+> It stays a faithful superset of upstream. On top of it we carry:
+> - the **RRDC** headless-control tooling in the emulator — an opt-in `RRDC=1`
+>   build adding screenshot / memory / key-injection / deterministic audio
+>   capture for automated testing (see [`CONTRIBUTING.md`](CONTRIBUTING.md));
+> - a case-insensitive `.neo` cold-boot fix (upstream PR #631), so uppercase
+>   `PACMAN.NEO`-style names auto-load on case-sensitive filesystems;
+> - a Doomsday One build/release pipeline (🟡 Build · 🐳 image · 🚀 Release ·
+>   🪞 Codeberg mirror).
+>
+> Licence is unchanged — MIT, with upstream copyright retained (see
+> [`LICENSE`](LICENSE)). Contributions welcome via
+> [`CONTRIBUTING.md`](CONTRIBUTING.md); issues and PRs are tracked on the
+> [project board](https://github.com/orgs/doomsdayonecom/projects/1).
+
+---
+
 # neo6502-firmware
 Firmware and emulators for the Neo6502 retro-computer
 
@@ -12,7 +38,13 @@ All the documentation currently resides at.
 The release tarballs contain pre-built firmware, emulators for windows and *nixes,
 scripts, utilities, documentation, and examples/demos of BASIC, C, and assembly programs.
 
-- https://github.com/paulscottrobson/neo6502-firmware/releases
+- Doomsday One releases: https://github.com/doomsdayonecom/neo6502-firmware/releases
+- Original upstream releases: https://github.com/paulscottrobson/neo6502-firmware/releases
+
+Each Doomsday One release publishes two bundles: `neo6502.zip` (the clean
+firmware) and `neo6502-rrdc.zip` (identical, but the Linux emulator is built
+with the RRDC control server for automated testing). See
+[`CHANGELOG.md`](CHANGELOG.md).
 
 ## Compilation
 
