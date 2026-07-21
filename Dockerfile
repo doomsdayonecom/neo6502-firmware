@@ -21,7 +21,7 @@ RUN apt-get update -y -qq \
       python3 python3-pip \
       64tass zip \
       libsdl2-dev \
-      gcc-arm-none-eabi \
+      gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib \
       mingw-w64 g++-mingw-w64-x86-64 \
  && rm -rf /var/lib/apt/lists/*
 
