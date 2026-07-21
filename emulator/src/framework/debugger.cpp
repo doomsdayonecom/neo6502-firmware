@@ -16,9 +16,18 @@
 #include "debugger.h"
 #include "common.h"
 
+#ifdef RRDC
 extern "C" {
 #include "retro_control.h"															// RRDC control server (see control_backend.cpp).
 }
+#else
+// RRDC not compiled in (default): no-op stubs so the run loop below is
+// unchanged. retro_control_running() reports "running" so the emulator is
+// never held paused by a control client that isn't there.
+static inline void retro_control_service(void)  {}
+static inline int  retro_control_running(void)  { return 1; }
+static inline void retro_control_on_frame(void) {}
+#endif
 
 static int isInitialised = 0; 														// Flag to initialise first time
 static int addressSettings[] = { 0,0,0,0x20FFFF }; 									// Adjustable values : Code, Data, Other, Break.

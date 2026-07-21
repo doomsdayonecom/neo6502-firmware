@@ -2,9 +2,10 @@
 //
 //		Name:		control_backend.cpp
 //		Purpose:	Retro Remote Debug Controller (RRDC) backend for the Neo6502 emulator.
-//		            Maps the retro_control vtable onto the emulator's internals (read-only),
-//		            so an external harness can read memory/registers, screenshot, and step
-//		            the machine deterministically over HTTP. See extern/.../SPEC.md.
+//		            Maps the retro_control vtable onto the emulator's internals so an
+//		            external harness can read/write memory + registers, screenshot, step,
+//		            inject keys, and reset the machine deterministically over HTTP.
+//		            See extern/.../SPEC.md.
 //
 // *******************************************************************************************************************************
 
@@ -12,7 +13,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "sys_processor.h"          // CPUReadMemory, CPUGetStatus65, CPUSTATUS65, WORD16
+#include <SDL.h>                     // SDL_Scancode, SDL_GetScancodeFromKey
+
+#include "sys_processor.h"          // CPUReadMemory/CPUWriteMemory/CPUReset, WORD16, CPUSTATUS65
 
 extern "C" {
 #include "retro_control.h"          // C contract header (no extern "C" of its own)
@@ -21,6 +24,9 @@ extern "C" {
 // Defined in sys_debugger.cpp (has videoRAM + palette in scope) / hardware.cpp.
 extern const uint8_t *RNDGetRGBFrame(int *w, int *h);
 extern int RNDGetFrameCount(void);
+extern void HWQueueKeyboardEvent(int sdlCode, int isDown);   // hardware.cpp (feeds KBDEvent)
+extern uint32_t BEEPERCaptureDrain(int16_t *out, uint32_t cap, uint32_t *dropped);  // beeper.cpp
+extern int BEEPERCaptureRate(void);                                                 // beeper.cpp
 
 // --- backend callbacks (called on the emulator thread by retro_control_service) ---------
 
@@ -56,13 +62,75 @@ static uint64_t neo_get_frame_count(void) {
     return (uint64_t)RNDGetFrameCount();
 }
 
+// --- 0.2: key injection -----------------------------------------------------
+// HWQueueKeyboardEvent(sdlScancode, isDown) is exactly what gfx.cpp's SDL loop
+// feeds real key events into: it matches the scancode against SDL2HIDMapping to
+// find the HID index, then calls KBDEvent — so an injected key is indistinguishable
+// from a physical press (both the console FIFO and the held-state array update).
+static void neo_key_event(SDL_Scancode sc, int action) {
+    if (action == RETRO_KEY_DOWN) {
+        HWQueueKeyboardEvent((int)sc, 1);
+    } else if (action == RETRO_KEY_UP) {
+        HWQueueKeyboardEvent((int)sc, 0);
+    } else {                                   // RETRO_KEY_TAP: press then release
+        HWQueueKeyboardEvent((int)sc, 1);
+        HWQueueKeyboardEvent((int)sc, 0);
+    }
+}
+
+// text => `value` is a character (letters map via the lowercase keycode);
+// code => `value` is a raw SDL scancode. Return 0 if it doesn't map (server -> 400).
+static int neo_inject_key(int is_text, uint32_t value, int action) {
+    SDL_Scancode sc;
+    if (is_text) {
+        int c = (int)value;
+        if (c >= 'A' && c <= 'Z') { c = c - 'A' + 'a'; }   // keycodes are lowercase
+        sc = SDL_GetScancodeFromKey((SDL_Keycode)c);
+    } else {
+        sc = (SDL_Scancode)value;                          // raw SDL scancode
+    }
+    if (sc == SDL_SCANCODE_UNKNOWN) { return 0; }
+    neo_key_event(sc, action);
+    return 1;
+}
+
+// --- 0.2: reset the machine -------------------------------------------------
+static void neo_reset(void) {
+    CPUReset();
+}
+
+// --- 0.3: debug-write (poke). Flat 64K, bank ignored; wraps at 0xFFFF. -------
+// Intended for RAM/state (e.g. poke the lives byte to reach the bust interstitial).
+static uint32_t neo_write_mem(uint32_t addr, int32_t bank, uint32_t len,
+                              const uint8_t *in) {
+    (void)bank;
+    for (uint32_t i = 0; i < len; i++) {
+        CPUWriteMemory((WORD16)((addr + i) & 0xFFFF), in[i]);
+    }
+    return len;
+}
+
+// --- 0.3: drain the audio synthesised since the last call (mono S16). The neo
+// generates audio per-frame in the emulation loop, so this is deterministic
+// under pause+step (step N frames -> N*(rate/60) samples). ---------------------
+static uint32_t neo_capture_audio(int16_t *out, uint32_t cap, int *rate,
+                                  int *channels, uint32_t *dropped) {
+    *rate = BEEPERCaptureRate();
+    *channels = 1;               // the neo beeper is mono
+    return BEEPERCaptureDrain(out, cap, dropped);
+}
+
 static const retro_control_backend_t neo_backend = {
     "neo6502",              // platform
     "neo",                  // emulator
-    neo_read_mem,
-    neo_get_regs_json,
-    neo_get_framebuffer,
-    neo_get_frame_count,
+    neo_read_mem,           // read_mem        (0.1)
+    neo_get_regs_json,      // get_regs_json   (0.1)
+    neo_get_framebuffer,    // get_framebuffer (0.1)
+    neo_get_frame_count,    // get_frame_count (0.1)
+    neo_inject_key,         // inject_key      (0.2)
+    neo_reset,              // reset           (0.2)
+    neo_write_mem,          // write_mem       (0.3)
+    neo_capture_audio,      // capture_audio   (0.3) — emulation-driven, deterministic
 };
 
 // Called once from main() when a control port was requested on the command line.
