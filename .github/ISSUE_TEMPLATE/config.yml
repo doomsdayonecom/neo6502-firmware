@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Upstream Neo6502 firmware
+    url: https://github.com/paulscottrobson/neo6502-firmware
+    about: The original project this fork is based on — check there for prior art.

@@ -1,0 +1,16 @@
+# Dependabot — automatic GitHub Actions version updates.
+#
+# Weekly check of all `uses:` references in .github/workflows/*.yml. Opens a
+# PR when an action has a newer version; the Build workflow runs on the PR so
+# breakage shows before merge.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - ci
+      - dependencies

@@ -1,0 +1,10 @@
+# The toolchain image carries no source — it is mounted at build time
+# (docker run -v "$PWD:/work"). Keep the build context tiny.
+.git
+**/*.o
+**/*.uf2
+**/*.elf
+emulator/neo
+emulator/neo.exe
+release/*.zip
+bin
