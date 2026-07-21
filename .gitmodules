@@ -1,0 +1,3 @@
+[submodule "emulator/extern/retro-remote-debug-controller"]
+	path = emulator/extern/retro-remote-debug-controller
+	url = https://github.com/doomsdayonecom/retro-remote-debug-controller.git
