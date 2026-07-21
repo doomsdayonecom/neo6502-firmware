@@ -61,7 +61,7 @@ jobs:
             -e GIT_CONFIG_COUNT=1 \
             -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/work \
             neo6502-firmware-builder:ci \
-            make CC="ccache g++"
+            make
 
       - name: 📤 Upload neo6502.zip (clean)
         uses: actions/upload-artifact@v4
@@ -76,7 +76,7 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -e CCACHE_DIR=/work/.ccache \
             neo6502-firmware-builder:ci \
-            bash -c 'set -e; make -C emulator clean; make -C emulator RRDC=1 CC="ccache g++"; nm emulator/neo | grep -q retro_control'
+            bash -c 'set -e; make -C emulator clean; make -C emulator RRDC=1; nm emulator/neo | grep -q retro_control'
           echo "RRDC=1 emulator carries the control backend ✔"
 
       - name: 💬 Notify Discord — build failed

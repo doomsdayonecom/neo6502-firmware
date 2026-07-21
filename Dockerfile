@@ -25,6 +25,12 @@ RUN apt-get update -y -qq \
       mingw-w64 g++-mingw-w64-x86-64 \
  && rm -rf /var/lib/apt/lists/*
 
+# Route native compiler calls (gcc/g++/cc/c++) through ccache transparently via
+# its symlinks — NOT by overriding CC, which would make cmake treat g++ as the
+# C compiler and break native host tools (elf2uf2). Cross-compilers are not
+# symlinked here, so the ARM/mingw builds are unaffected.
+ENV PATH="/usr/lib/ccache:${PATH}"
+
 # Python build deps, from requirements.txt so Dependabot can track them.
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
