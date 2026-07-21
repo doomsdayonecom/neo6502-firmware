@@ -21,13 +21,22 @@ IMPSRC = $(COMDIR)sources$(S)interface$(S)
 COMMONSOURCES = $(wildcard $(IMPSRC)*.cpp)
 COMMONOBJECTS = $(subst .cpp,.o,$(COMMONSOURCES))
 
-SOURCES = 	src$(S)core$(S)sys_processor.o src$(S)core$(S)hardware.o src$(S)framework$(S)beeper.o \
+# RRDC (Retro Remote Debug Controller) — opt-in headless control server.
+# `make RRDC=1` compiles it in (an HTTP control backend bound to 127.0.0.1);
+# off by default, so the ship build carries no debug server. Mirrors the
+# mednafen fork's --enable-rrdc switch.
+ifeq ($(RRDC),1)
+RRDC_OBJECTS =	src$(S)core$(S)control_backend.o \
+		extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.o
+RRDC_DEFINE  =	-DRRDC
+endif
+
+SOURCES =	src$(S)core$(S)sys_processor.o src$(S)core$(S)hardware.o src$(S)framework$(S)beeper.o \
 			src$(S)framework$(S)main.o src$(S)framework$(S)gfx.o src$(S)framework$(S)debugger.o \
 			src$(S)core$(S)sys_debugger.o  \
 			src$(S)core$(S)6502.o \
 			src$(S)core$(S)serial_tcp.o \
-			src$(S)core$(S)control_backend.o \
-			extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.o \
+			$(RRDC_OBJECTS) \
 			$(COMMONOBJECTS)
 
 CC = g++
@@ -107,7 +116,7 @@ $(APPNAME): $(SOURCES)
 	$(CC) $(SOURCES) $(LDFLAGS) $(SDL_LDFLAGS) -lpthread -o $@
 
 %.o:%.cpp
-	$(CC) $(CADDRESSES) $(CXXFLAGS) -fpermissive -D IBMPC -D INCLUDE_DEBUGGING_SUPPORT '-D__time_critical_func(x)=x' -I cpu -I src$(S)framework -I include -I $(COMDIR)include -I extern$(S)retro-remote-debug-controller$(S)core -c -o $@ $<
+	$(CC) $(CADDRESSES) $(CXXFLAGS) $(RRDC_DEFINE) -fpermissive -D IBMPC -D INCLUDE_DEBUGGING_SUPPORT '-D__time_critical_func(x)=x' -I cpu -I src$(S)framework -I include -I $(COMDIR)include -I extern$(S)retro-remote-debug-controller$(S)core -c -o $@ $<
 
 # RRDC control server (portable C, compiled as C for C linkage).
 extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.o: extern$(S)retro-remote-debug-controller$(S)core$(S)retro_control.c
