@@ -4,9 +4,8 @@
 > fork of the [Neo6502](https://www.olimex.com/Products/Retro-Computers/Neo6502/)
 > firmware and emulators, originally by **Paul Scott Robson**
 > ([paulscottrobson/neo6502-firmware](https://github.com/paulscottrobson/neo6502-firmware)).
-> Upstream development has largely wound down, so we maintain this fork as the
-> reference firmware + emulator for our Neo6502 projects — such as
-> [pac-man-neo](https://github.com/doomsdayonecom/pac-man-neo).
+> We maintain this fork as the reference firmware + emulator for our
+> Neo6502 projects — such as [pac-man-neo](https://github.com/doomsdayonecom/pac-man-neo).
 >
 > It stays a faithful superset of upstream. On top of it we carry:
 > - the **RRDC** headless-control tooling in the emulator — an opt-in `RRDC=1`
