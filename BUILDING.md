@@ -35,22 +35,16 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-user> --password-stdin
 
 ## Option B — native toolchain
 
-### ⚠️ The CMake gotcha — read this first
+### CMake 4.x + pico-sdk 1.5.1 (handled for you)
 
-**pico-sdk 1.5.1 requires CMake < 4.0.** CMake 4.x removed support for the old
-`cmake_minimum_required(VERSION <3.5)` that pico-sdk 1.5.1 still uses, so the
-RP2040 firmware build fails at configure time with:
+pico-sdk 1.5.1 declares an old `cmake_minimum_required` that CMake 4.x rejects
+(*"Compatibility with CMake < 3.5 has been removed"*). The build **works around
+this automatically**: `firmware/Makefile` exports `CMAKE_POLICY_VERSION_MINIMUM`,
+which CMake ≥ 3.31 honours and older CMake (the 3.28 in the toolchain image)
+ignores — so a modern-CMake distro builds with no special steps.
 
-```
-CMake Error: Compatibility with CMake < 3.5 has been removed from CMake.
-```
-
-Recent distros ship CMake 4.x. Either use Docker (Option A) or install a
-CMake 3.x and put it first on `PATH`:
-
-```sh
-pipx install "cmake<4"     # or: pip install --break-system-packages "cmake<4"
-```
+If you ever need to change it: `make CMAKE_POLICY_VERSION_MINIMUM=3.5` (or set
+it in the environment).
 
 ### Dependencies — Debian / Ubuntu
 
