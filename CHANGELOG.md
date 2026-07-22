@@ -32,6 +32,19 @@ The first release built and published from this fork. It tracks upstream's
   🚀 Release, 🪞 Codeberg mirror — plus issue/PR templates,
   [`CONTRIBUTING.md`](CONTRIBUTING.md) and Dependabot.
 
+### Build & tooling
+- **Reproducible toolchain image** — CI (and local builds) run inside a pinned
+  container: `pico-sdk` fixed to **1.5.1** (the version the firmware expects;
+  2.x is a breaking change) and the full ARM `newlib` toolchain, so the build no
+  longer depends on whatever the CI runner happens to ship. Cached across CI runs
+  and accelerated with `ccache`.
+- **The RRDC control core is a shared git submodule**
+  ([retro-remote-debug-controller](https://github.com/doomsdayonecom/retro-remote-debug-controller))
+  rather than a vendored copy, so the contract stays in sync across emulators.
+  Clone with `--recursive`; only the `RRDC=1` build needs it.
+- **Builder DX** — `make help` lists the targets, `make clean` no longer needs
+  cmake, and the build prints coloured/emoji phase output.
+
 ### Release artifacts
 - **`neo6502.zip`** — the clean firmware bundle (RP2040 firmware, Linux + Windows
   emulators, kernel, BASIC, examples). No debug server.

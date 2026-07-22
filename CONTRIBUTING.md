@@ -36,6 +36,9 @@ docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/doomsdayonecom/neo6502-firmware-builder:latest make
 ```
 
+The RRDC control core is a git submodule — clone with `--recursive`, or run
+`git submodule update --init` (only the `RRDC=1` build compiles it).
+
 | Command | What it does |
 |---|---|
 | `make` | Build everything → `release/neo6502.zip` (RP2040 firmware, emulators, kernel, BASIC, examples) |
