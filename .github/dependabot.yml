@@ -1,8 +1,10 @@
-# Dependabot — automatic GitHub Actions version updates.
+# Dependabot — weekly dependency updates.
 #
-# Weekly check of all `uses:` references in .github/workflows/*.yml. Opens a
-# PR when an action has a newer version; the Build workflow runs on the PR so
-# breakage shows before merge.
+# - github-actions: `uses:` refs in .github/workflows/*.yml
+# - docker:         the base image in the Dockerfile (ubuntu:24.04)
+# - pip:            the Python build deps in requirements.txt
+#
+# The Build workflow runs on each PR so breakage shows before merge.
 
 version: 2
 updates:
@@ -13,4 +15,21 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - ci
+      - dependencies
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - ci
+      - dependencies
+
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
       - dependencies

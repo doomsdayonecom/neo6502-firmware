@@ -1,0 +1,5 @@
+# Python build dependencies for the Neo6502 firmware build scripts.
+#   pillow    — image conversion (bootdisplay + asset tooling)
+#   gitpython — version stamping (firmware/common/scripts/prompt.py)
+pillow
+gitpython
