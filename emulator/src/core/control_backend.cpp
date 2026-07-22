@@ -16,6 +16,7 @@
 #include <SDL.h>                     // SDL_Scancode, SDL_GetScancodeFromKey
 
 #include "sys_processor.h"          // CPUReadMemory/CPUWriteMemory/CPUReset, WORD16, CPUSTATUS65
+#include "interface/mouse.h"        // MSE* firmware mouse API (0.4 pointer injection)
 
 extern "C" {
 #include "retro_control.h"          // C contract header (no extern "C" of its own)
@@ -120,6 +121,39 @@ static uint32_t neo_capture_audio(int16_t *out, uint32_t cap, int *rate,
     return BEEPERCaptureDrain(out, cap, dropped);
 }
 
+// --- 0.4: pointer injection -------------------------------------------------
+// Drives the firmware mouse exactly as HWUpdateMouse() feeds a physical one:
+// absolute -> MSESetPosition, relative -> MSEOffsetPosition (int8 deltas),
+// buttons -> MSEUpdateButtonState. The firmware's button masks (0x1 left,
+// 0x2 right) already match the RRDC bitmask (bit0 primary, bit1 secondary), so
+// the mask passes straight through. Coordinates are firmware graphics pixels —
+// the same space a program reads back via MSEGetState. The emulator enables the
+// mouse at reset, so injection works from boot; return 0 (server -> 400) if it
+// somehow isn't present.
+static int neo_set_pointer(int absolute, int32_t x, int32_t y, int buttons) {
+    if (!MSEMousePresent()) { return 0; }
+    if (absolute) {
+        MSESetPosition((uint16_t)x, (uint16_t)y);
+    } else {                                  // relative: clamp to the int8 API
+        int32_t dx = x < -128 ? -128 : (x > 127 ? 127 : x);
+        int32_t dy = y < -128 ? -128 : (y > 127 ? 127 : y);
+        MSEOffsetPosition((int8_t)dx, (int8_t)dy);
+    }
+    if (buttons >= 0) { MSEUpdateButtonState((uint8_t)buttons); }   // -1 => leave held state
+    return 1;
+}
+
+static int neo_get_pointer(int32_t *x, int32_t *y, int *buttons) {
+    if (!MSEMousePresent()) { return 0; }
+    uint16_t mx = 0, my = 0;
+    uint8_t  mb = 0, scroll = 0;
+    MSEGetState(&mx, &my, &mb, &scroll);
+    *x = (int32_t)mx;
+    *y = (int32_t)my;
+    *buttons = (int)mb;
+    return 1;
+}
+
 static const retro_control_backend_t neo_backend = {
     "neo6502",              // platform
     "neo",                  // emulator
@@ -131,6 +165,8 @@ static const retro_control_backend_t neo_backend = {
     neo_reset,              // reset           (0.2)
     neo_write_mem,          // write_mem       (0.3)
     neo_capture_audio,      // capture_audio   (0.3) — emulation-driven, deterministic
+    neo_set_pointer,        // set_pointer     (0.4) — drives the firmware mouse
+    neo_get_pointer,        // get_pointer     (0.4)
 };
 
 // Called once from main() when a control port was requested on the command line.
