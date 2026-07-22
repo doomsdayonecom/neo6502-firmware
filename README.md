@@ -47,6 +47,10 @@ with the RRDC control server for automated testing). See
 
 ## Compilation
 
+**See [BUILDING.md](BUILDING.md)** for the full local-build guide — Docker
+(recommended) and native dependencies, including the **CMake < 4.0**
+requirement that trips up modern distros.
+
 > **Clone with submodules.** The RRDC control core is a git submodule, so clone
 > with `git clone --recursive …` (or run `git submodule update --init` after
 > cloning). Only the `RRDC=1` emulator build needs it; the default build doesn't.

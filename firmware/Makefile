@@ -24,6 +24,13 @@ BINARY = firmware
 #
 STORAGE = USB
 
+# Let modern CMake (4.x) configure pico-sdk 1.5.1, which still declares an old
+# cmake_minimum_required that CMake 4 rejects. Honoured by CMake >= 3.31,
+# ignored by older (e.g. the 3.28 in the toolchain image). Exported so the
+# nested pico-sdk sub-builds inherit it; override on the command line if needed.
+CMAKE_POLICY_VERSION_MINIMUM ?= 3.5
+export CMAKE_POLICY_VERSION_MINIMUM
+
 all: build
 
 always:
