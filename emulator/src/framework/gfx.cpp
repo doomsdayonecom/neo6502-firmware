@@ -423,6 +423,16 @@ unsigned int GFXReadController(int id) {
 	if (abs(dy) >= 1024) {
 		bitPattern |= (dy < 0) ? 0x04:0x08;
 	}
+	// Many USB pads — SNES-style ones especially (vendor 0x081f / SINO WEALTH) —
+	// report the d-pad as a HAT rather than axes 0/1, so read hat 0 as well and
+	// OR it into the same direction bits (left 0x01, right 0x02, up 0x04, down 0x08).
+	if (SDL_JoystickNumHats(controllers[id]) > 0) {
+		Uint8 hat = SDL_JoystickGetHat(controllers[id],0);
+		if (hat & SDL_HAT_LEFT)  bitPattern |= 0x01;
+		if (hat & SDL_HAT_RIGHT) bitPattern |= 0x02;
+		if (hat & SDL_HAT_UP)    bitPattern |= 0x04;
+		if (hat & SDL_HAT_DOWN)  bitPattern |= 0x08;
+	}
 	int buttons = SDL_JoystickNumButtons(controllers[id]);
 	buttons = (buttons >= 4) ? 4 : buttons;
 	for (int b = 0;b < buttons;b++) {
