@@ -47,6 +47,10 @@ with the RRDC control server for automated testing). See
 
 ## Compilation
 
+> **Clone with submodules.** The RRDC control core is a git submodule, so clone
+> with `git clone --recursive …` (or run `git submodule update --init` after
+> cloning). Only the `RRDC=1` emulator build needs it; the default build doesn't.
+
 ### Sources
 
 Note that to build the firmware, additional third-party sources are required.
