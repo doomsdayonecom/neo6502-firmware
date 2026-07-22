@@ -28,8 +28,10 @@ Issues and PRs are tracked on the
 
 ## Building
 
-The build needs 64tass, `arm-none-eabi`, SDL2, mingw-w64 and the Raspberry Pi
-Pico SDK. The simplest route is the published toolchain image:
+See **[BUILDING.md](BUILDING.md)** for the full guide (Docker + native deps +
+the CMake < 4.0 gotcha). In short — the build needs 64tass, `arm-none-eabi`,
+SDL2, mingw-w64 and the Raspberry Pi Pico SDK, and the simplest route is the
+published toolchain image:
 
 ```sh
 docker run --rm -v "$PWD:/work" -w /work \
