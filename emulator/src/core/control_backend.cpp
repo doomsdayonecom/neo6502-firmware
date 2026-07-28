@@ -13,7 +13,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <SDL.h>                     // SDL_Scancode, SDL_GetScancodeFromKey
+#include <SDL.h>
+#include "gfx.h"            // GFXSetVirtualPad / GFXGetVirtualPad (0.5)                     // SDL_Scancode, SDL_GetScancodeFromKey
 
 #include "sys_processor.h"          // CPUReadMemory/CPUWriteMemory/CPUReset, WORD16, CPUSTATUS65
 #include "interface/mouse.h"        // MSE* firmware mouse API (0.4 pointer injection)
@@ -154,6 +155,21 @@ static int neo_get_pointer(int32_t *x, int32_t *y, int *buttons) {
     return 1;
 }
 
+// --- 0.5: pad injection ------------------------------------------------------
+// Straight through to the emulator's virtual-pad layer. The Neo firmware's
+// controller bitmask IS the RRDC canonical layout (bit0 LEFT, 1 RIGHT, 2 UP,
+// 3 DOWN, 4 A, 5 B, 6 X, 7 Y) -- the reason the SPEC chose that order -- so
+// there is no conversion to do here. A platform whose hardware disagrees does
+// it in its own backend; this one is the reference.
+static int neo_set_pad(int index, int buttons, int connected) {
+    GFXSetVirtualPad(index, buttons, connected);
+    return 1;
+}
+
+static int neo_get_pad(int index, int *buttons, int *connected) {
+    return GFXGetVirtualPad(index, buttons, connected) ? 1 : 0;
+}
+
 static const retro_control_backend_t neo_backend = {
     "neo6502",              // platform
     "neo",                  // emulator
@@ -167,6 +183,8 @@ static const retro_control_backend_t neo_backend = {
     neo_capture_audio,      // capture_audio   (0.3) — emulation-driven, deterministic
     neo_set_pointer,        // set_pointer     (0.4) — drives the firmware mouse
     neo_get_pointer,        // get_pointer     (0.4)
+    neo_set_pad,            // set_pad         (0.5) -- virtual pads
+    neo_get_pad,            // get_pad         (0.5)
 };
 
 // Called once from main() when a control port was requested on the command line.
