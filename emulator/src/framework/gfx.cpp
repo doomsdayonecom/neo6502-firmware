@@ -485,11 +485,24 @@ unsigned int GFXReadController(int id) {
 		if (hat & SDL_HAT_UP)    bitPattern |= 0x04;
 		if (hat & SDL_HAT_DOWN)  bitPattern |= 0x08;
 	}
+	// Eight buttons, not four. The cap was 4, which reaches A/B/X/Y (0x10,
+	// 0x20, 0x40, 0x80) and stops -- so SELECT and START, which a SNES-style
+	// pad reports as buttons 4 and 5, could never be seen. A game wanting the
+	// arcade's coin/start semantics had no way to read them, and the RRDC
+	// canonical layout has bits for both (8 = START, 9 = SELECT) that nothing
+	// could ever set.
+	//
+	// Widened to 8, which is what the mask has room for below A/B/X/Y and
+	// covers the usual SNES/NES-style pad. Buttons past that are still
+	// dropped; a pad with 12 is not the case being served here.
 	int buttons = SDL_JoystickNumButtons(controllers[id]);
-	buttons = (buttons >= 4) ? 4 : buttons;
+	buttons = (buttons >= 8) ? 8 : buttons;
 	for (int b = 0;b < buttons;b++) {
 		if (SDL_JoystickGetButton(controllers[id],b)) {
-			bitPattern |= (0x10 << b);
+			// 0..3 -> A/B/X/Y at 0x10..0x80; 4 -> START (0x100),
+			// 5 -> SELECT (0x200), matching the RRDC canonical layout so a
+			// game reads the same bit whatever it is running on.
+			bitPattern |= (b < 4) ? (0x10 << b) : (0x100 << (b - 4));
 		}
 	}
 	return bitPattern;
