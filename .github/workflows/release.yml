@@ -23,9 +23,29 @@ permissions:
 jobs:
   release:
     name: 🚀 Build + publish release
-    runs-on: ubuntu-latest
+    # GitHub-hosted (org minutes). Swap back by uncommenting this
+    # line and commenting the one below.
+    # runs-on: ubuntu-latest
+    runs-on: [self-hosted, doomsdayonecom]
 
     steps:
+      # Self-hosted runners reuse their workspace, and a job that ran as
+      # root can leave files the runner user cannot delete -- which makes
+      # the NEXT checkout fail with EACCES, on a branch that never went
+      # near CI. Take ownership of the whole workspace rather than
+      # guessing which paths a root-running action touched; guessing cost
+      # galaga-neo two rounds (it was .git/refs/remotes/mirror, and then
+      # .git/logs/refs/remotes/mirror as well). Guarded by a find, so it
+      # costs nothing when there is nothing to fix.
+      - name: 🧹 Take ownership of the workspace (self-hosted)
+        run: |
+          if [ -d "${GITHUB_WORKSPACE}" ] && [ -n "$(find "${GITHUB_WORKSPACE}" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
+            docker run --rm -v "${GITHUB_WORKSPACE}:/w" alpine:3 \
+              chown -R "$(id -u):$(id -g)" /w || true
+            echo "took ownership of ${GITHUB_WORKSPACE}"
+          fi
+        continue-on-error: true
+
       - name: 📦 Checkout source
         uses: actions/checkout@v7
         with:

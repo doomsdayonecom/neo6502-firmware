@@ -21,7 +21,10 @@ concurrency:
 jobs:
   mirror-code:
     name: Mirror code repo
-    runs-on: ubuntu-latest
+    # GitHub-hosted (org minutes). Swap back by uncommenting this
+    # line and commenting the one below.
+    # runs-on: ubuntu-latest
+    runs-on: [self-hosted, doomsdayonecom]
     steps:
       - name: 🔑 Check for the Codeberg deploy key
         id: guard
@@ -35,15 +38,64 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Self-hosted runners reuse their workspace, and a job that ran as
+      # root can leave files the runner user cannot delete -- which makes
+      # the NEXT checkout fail with EACCES, on a branch that never went
+      # near CI. Take ownership of the whole workspace rather than
+      # guessing which paths a root-running action touched; guessing cost
+      # galaga-neo two rounds (it was .git/refs/remotes/mirror, and then
+      # .git/logs/refs/remotes/mirror as well). Guarded by a find, so it
+      # costs nothing when there is nothing to fix.
+      - name: 🧹 Take ownership of the workspace (self-hosted)
+        run: |
+          if [ -d "${GITHUB_WORKSPACE}" ] && [ -n "$(find "${GITHUB_WORKSPACE}" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]; then
+            docker run --rm -v "${GITHUB_WORKSPACE}:/w" alpine:3 \
+              chown -R "$(id -u):$(id -g)" /w || true
+            echo "took ownership of ${GITHUB_WORKSPACE}"
+          fi
+        continue-on-error: true
+
       - name: 📦 Checkout (full history + all refs)
         if: steps.guard.outputs.run == 'true'
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      # Plain git, not the Docker mirroring action, and the reason is
+      # self-hosted runners.
+      #
+      # A Docker action runs as ROOT, and a self-hosted runner REUSES its
+      # workspace between jobs. That action adds a remote called `mirror`,
+      # so it leaves root-owned files under .git/refs/remotes/mirror/ (and
+      # .git/logs/refs/remotes/mirror/) that the runner user cannot
+      # delete -- and every later checkout on that runner dies with
+      #
+      #   EACCES: permission denied, unlink '.../refs/remotes/mirror/...'
+      #
+      # failing builds on branches that never went near mirroring. This
+      # is not hypothetical: it took galaga-neo's CI down for three PRs
+      # before the cause was found, because nothing about the failure
+      # points at the mirror job.
+      #
+      # git directly creates no named remote and runs as the runner user,
+      # so nothing is left behind.
       - name: 🪞 Push to Codeberg
         if: steps.guard.outputs.run == 'true'
-        uses: pixta-dev/repository-mirroring-action@v1
-        with:
-          target_repo_url: ssh://git@codeberg.org/doomsdayonecom/neo6502-firmware.git
-          ssh_private_key: ${{ secrets.CODEBERG_SSH_KEY }}
+        env:
+          CODEBERG_SSH_KEY: ${{ secrets.CODEBERG_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CODEBERG_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan codeberg.org >> ~/.ssh/known_hosts 2>/dev/null
+          url=ssh://git@codeberg.org/doomsdayonecom/neo6502-firmware.git
+          # The ref by name plus tags -- not --mirror, which would push
+          # the checkout's refs/remotes/origin/* and write GitHub's
+          # remote-tracking layout into Codeberg.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            git push --force "$url" "refs/tags/${GITHUB_REF_NAME}"
+          else
+            git push --force "$url" "HEAD:refs/heads/${GITHUB_REF_NAME}"
+            git push --force --tags "$url"
+          fi
