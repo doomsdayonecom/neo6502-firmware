@@ -403,8 +403,56 @@ int GFXTimer(void) {
 //
 // *******************************************************************************************************************************
 
+// RRDC 0.5 virtual pads. A test harness has no joystick -- headless CI
+// certainly has none -- so injection presents a pad HERE, at the same place
+// the real ones are reported, rather than driving SDL. Everything above this
+// line (the firmware, the game) cannot tell the difference, which is the
+// whole point: what a test exercises is the path a physical pad takes.
+#define VPAD_MAX	4
+static bool     vpadPresent[VPAD_MAX];
+static uint32_t vpadButtons[VPAD_MAX];
+
+void GFXSetVirtualPad(int index,int buttons,int connected) {
+	if (index < 0 || index >= VPAD_MAX) return;
+	if (connected >= 0) vpadPresent[index] = (connected != 0);
+	if (buttons >= 0) vpadButtons[index] = (uint32_t)buttons;
+}
+
+bool GFXGetVirtualPad(int index,int *buttons,int *connected) {
+	if (index < 0 || index >= VPAD_MAX) return false;
+	// AN INJECTION WINS over a physical pad at the same index. That is not
+	// the obvious ordering -- "real hardware should take precedence" was the
+	// first attempt -- but it is the correct one for a test contract: a suite
+	// must behave the same on a machine with a controller plugged in as on
+	// one without, or results depend on the developer's desk.
+	//
+	// It also happens to be load-bearing. SDL under Xvfb reports a joystick
+	// that reads as all zeros, so deferring to "real" hardware silently
+	// swallowed every injection and reported buttons=0, connected=true.
+	if (vpadPresent[index]) {
+		if (buttons != NULL) *buttons = (int)vpadButtons[index];
+		if (connected != NULL) *connected = 1;
+		return true;
+	}
+	if (index < controllerCount) {
+		if (buttons != NULL) *buttons = (int)GFXReadController(index);
+		if (connected != NULL) *connected = 1;
+		return true;
+	}
+	if (buttons != NULL) *buttons = 0;
+	if (connected != NULL) *connected = 0;
+	return true;
+}
+
 int GFXControllerCount(void) {
-	return controllerCount;
+	// Virtual pads extend the count so the firmware's own "how many
+	// controllers" answer includes them -- a game that gates two-player on
+	// the count has to see them or the injection is untestable.
+	int n = controllerCount;
+	for (int i = controllerCount;i < VPAD_MAX;i++) {
+		if (vpadPresent[i]) n = i+1;
+	}
+	return n;
 }
 
 // *******************************************************************************************************************************
@@ -415,6 +463,10 @@ int GFXControllerCount(void) {
 
 unsigned int GFXReadController(int id) {
 	int bitPattern = 0;
+	// An injected pad answers first, at any index -- see GFXGetVirtualPad for
+	// why injection outranks physical hardware here.
+	if (id >= 0 && id < VPAD_MAX && vpadPresent[id]) return vpadButtons[id];
+	if (id >= controllerCount) return 0;
 	Sint16 dx = SDL_JoystickGetAxis(controllers[id],0);
 	if (abs(dx) >= 1024) {
 		bitPattern |= (dx < 0) ? 0x01:0x02;

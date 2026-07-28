@@ -77,6 +77,8 @@ void GFXSetFrequency(int freq,int channel);
 int GFXReadJoystick0(void);
 int GFXControllerCount(void);
 unsigned int GFXReadController(int id);
+void GFXSetVirtualPad(int index,int buttons,int connected);      // RRDC 0.5
+bool GFXGetVirtualPad(int index,int *buttons,int *connected);    // RRDC 0.5
 
 void SOUNDOpen(); // Open the audio device
 void SOUNDClose(); // Close the audio device
