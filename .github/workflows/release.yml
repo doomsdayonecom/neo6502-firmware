@@ -94,12 +94,26 @@ jobs:
             -e CCACHE_DIR=/work/.ccache \
             neo6502-firmware-builder:ci \
             bash -c 'set -e; make -C emulator clean; make -C emulator RRDC=1; nm emulator/neo | grep -q retro_control'
-          # The RRDC bundle is the clean bundle with only the Linux emulator swapped.
+          # The RRDC bundle is the clean bundle with only the Linux emulator
+          # swapped.
+          #
+          # The swap runs INSIDE the builder container, like the build above
+          # it. It used to shell out to `zip` on the host, which is fine on
+          # ubuntu-latest -- zip is preinstalled there -- and fails on a
+          # self-hosted runner with `zip: command not found`, after a full
+          # successful build. The image already has zip (it is what `make
+          # release` used to produce neo6502.zip), so using it here costs
+          # nothing and removes a dependency on what happens to be installed
+          # on the machine. Anything else this job needs should go the same
+          # way rather than become a runner setup note.
           cp neo6502.zip neo6502-rrdc.zip
-          workdir="$RUNNER_TEMP/rrdc"
-          rm -rf "$workdir" && mkdir -p "$workdir"
-          cp emulator/neo "$workdir/neo"
-          ( cd "$workdir" && zip -q "$GITHUB_WORKSPACE/neo6502-rrdc.zip" neo )
+          docker run --rm \
+            -v "${PWD}:/work" -w /work \
+            --user "$(id -u):$(id -g)" \
+            neo6502-firmware-builder:ci \
+            bash -c 'set -e; d=$(mktemp -d); cp emulator/neo "$d/neo"; \
+                     ( cd "$d" && zip -q /work/neo6502-rrdc.zip neo ); \
+                     rm -rf "$d"'
           echo "swapped RRDC Linux emulator into neo6502-rrdc.zip ✔"
 
       - name: 🚀 Publish GitHub Release
