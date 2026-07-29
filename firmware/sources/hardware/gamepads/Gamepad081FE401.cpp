@@ -34,6 +34,14 @@ uint32_t Gamepad081FE401::getState() {
 	if (m_dpad_up) state |= 0x4;
 	if (m_dpad_down) state |= 0x8;
 
+	// START and SELECT were decoded above and then dropped; see Gamepad.h.
+	// Reported at the shared bits so a program reads the same button
+	// whatever pad is plugged in.
+	if (m_start) state |= GAMEPAD_START;
+	if (m_select) state |= GAMEPAD_SELECT;
+	if (m_l) state |= GAMEPAD_L;
+	if (m_r) state |= GAMEPAD_R;
+
 	return state;
 }
 
