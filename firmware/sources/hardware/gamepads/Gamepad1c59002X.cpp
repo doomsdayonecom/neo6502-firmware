@@ -39,6 +39,14 @@ uint32_t Gamepad1c590026::getState() {
 		if (m_sr) state |= 0x20; //fire2			
 		if (m_menu) state |= 0x40; //menu
 		if (m_select) state |= 0x80; //select		
+
+		// START and SELECT were decoded above and then dropped; see
+		// Gamepad.h. Reported at the shared bits too, so a program reads
+		// the same button whatever pad is plugged in. Inside this branch
+		// because THECXSTICK, the other device this driver serves, never
+		// assigns them -- reading them out here would be uninitialised.
+		if (m_menu) state |= GAMEPAD_START;
+		if (m_select) state |= GAMEPAD_SELECT;
 	}
 
 	if (m_left) state |= 0x1;
